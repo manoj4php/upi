@@ -10,7 +10,7 @@ pipeline {
   stages {         
     stage("Git Checkout"){           
       steps{                
-	git credentialsId: 'github', url: 'https://github.com/manoj4php/upi'                 
+	git credentialsId: 'manoj4php', url: 'https://github.com/manoj4php/upi'                 
 	echo 'Git Checkout Completed'            
       }        
     }
