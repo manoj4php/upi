@@ -1,40 +1,47 @@
-pipeline {  
-  agent any	
-  tools { 
-   maven 'MAVEN_HOME' 
-   jdk 'JAVA_HOME' 
-  }
-  environment {     
-    DOCKERHUB_CREDENTIALS= credentials('manoj2489')     
-  }    
-  stages {        
-    stage('Build') { 
-            steps {
-                sh 'mvn -B -DskipTests clean package' 
-            }
-    }	  
-    stage('Build Docker Image') {         
-      steps{                
-	sh 'sudo docker build -t manoj2489/upismart:$BUILD_NUMBER .'           
-        echo 'Build Image Completed'                
-      }           
-    }
-    stage('Login to Docker Hub') {         
-      steps{                            
-	sh 'echo $DOCKERHUB_CREDENTIALS_PSW | sudo docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'                 
-	echo 'Login Completed'                
-      }           
-    }               
-    stage('Push Image to Docker Hub') {         
-      steps{                            
-	sh 'sudo docker push manoj2489/upismart:$BUILD_NUMBER'                 
-          echo 'Push Image Completed'       
-      }           
-    }      
-  } //stages 
-  post{
-    always {  
-      sh 'docker logout'           
-    }      
-  }  
-} //pipeline
+pipeline {
+ agent any
+ environment {
+ AWS_ACCOUNT_ID="730335460216"
+ AWS_DEFAULT_REGION="us-east-1" 
+ IMAGE_REPO_NAME="spring-boot-images"
+ IMAGE_TAG="latest"
+ REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
+ }
+ 
+ stages {
+ 
+ stage('Logging into AWS ECR') {
+ steps {
+ script {
+ sh "aws ecr get-login-password - region ${AWS_DEFAULT_REGION} | docker login - username AWS - password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+ }
+ 
+ }
+ }
+ 
+ stage('Cloning Git') {
+ steps {
+ checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/manoj4php/upi.git']]]) 
+ }
+ }
+ 
+ // Building Docker images
+ stage('Building image') {
+ steps{
+ script {
+ dockerImage = docker.build "${IMAGE_REPO_NAME}:${IMAGE_TAG}"
+ }
+ }
+ }
+ 
+ // Uploading Docker images into AWS ECR
+ stage('Pushing to ECR') {
+ steps{ 
+ script {
+ sh "docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} ${REPOSITORY_URI}:$IMAGE_TAG"
+ sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
+ }
+ }
+ }
+ }
+}
