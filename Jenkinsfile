@@ -7,13 +7,12 @@ pipeline {
   environment {     
     DOCKERHUB_CREDENTIALS= credentials('manoj2489')     
   }    
-  stages {         
-    stage("Git Checkout"){           
-      steps{                
-	git credentialsId: 'manoj4php', url: 'https://github.com/manoj4php/upi'                 
-	echo 'Git Checkout Completed'            
-      }        
-    }
+  stages {        
+    stage('Build') { 
+            steps {
+                sh 'mvn -B -DskipTests clean package' 
+            }
+    }	  
     stage('Build Docker Image') {         
       steps{                
 	sh 'sudo docker build -t manoj2489/upismart:$BUILD_NUMBER .'           
